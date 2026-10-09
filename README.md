@@ -9,7 +9,7 @@ Small shell hooks for the [Cogitating](#get-the-app) app (a quiz feed for develo
 1. **Get a token.** In the app: Settings → Agent hook → Share. Copy the hook token.
 2. **Run the installer:**
    ```bash
-   git clone https://github.com/OWNER/cogitating-notify.git   # TODO: fix URL
+   git clone https://github.com/deadcoffeecup/cogitating-notify.git
    cd cogitating-notify
    bash install.sh --token YOUR_TOKEN
    ```
