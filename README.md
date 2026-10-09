@@ -21,6 +21,10 @@ Prefer to do it by hand? Copy `hooks/claude-code.sh` somewhere, merge [`hooks/se
 { "env": { "COGITATING_HOOK_TOKEN": "YOUR_TOKEN" } }
 ```
 
+## Don't know your tool or model? Let your agent do it
+
+In the app: Settings → Agent hook → **Copy prompt for your agent**, then paste it into any coding agent (Claude Code, Codex, Cursor, Gemini CLI, Copilot CLI, Windsurf, Aider, OpenCode…). It works with every model: the agent works out which tool it runs in, merges the hook into the right config file (with a backup), and verifies it with a test request. The prompt contains your hook token, so don't share it.
+
 ## Supported tools
 
 | Tool | Coverage | Event used | Example |
