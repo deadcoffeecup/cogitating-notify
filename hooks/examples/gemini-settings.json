@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "AfterAgent": [
+      {
+        "hooks": [
+          { "name": "cogitating", "type": "command", "command": "COGITATING_NOTIFY_JSON=1 bash ~/.cogitating/cogitating-notify.sh", "timeout": 5000 }
+        ]
+      }
+    ]
+  }
+}

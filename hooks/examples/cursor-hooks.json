@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "hooks": {
+    "stop": [
+      { "command": "COGITATING_NOTIFY_JSON=1 bash ~/.cogitating/cogitating-notify.sh" }
+    ]
+  }
+}

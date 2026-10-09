@@ -1,0 +1,16 @@
+name: shellcheck
+on: [push, pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: bash -n
+        run: |
+          for f in install.sh hooks/*.sh test/*.sh; do bash -n "$f"; done
+      - name: shellcheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck install.sh hooks/*.sh test/*.sh
+      - name: smoke test
+        run: bash test/smoke.sh

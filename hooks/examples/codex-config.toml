@@ -1,0 +1,2 @@
+# ~/.codex/config.toml  (Codex CLI; argv is not shell-expanded, so use an absolute path; JSON payload is ignored)
+notify = ["bash", "/Users/you/.cogitating/cogitating-notify.sh"]
