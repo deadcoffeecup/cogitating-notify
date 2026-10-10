@@ -1,0 +1,28 @@
+== legacy: no stdin, no event (old installs: agent-finished with empty body)
+legacy-empty|DRY-RUN POST /v1/hooks/agent-finished {}
+== unknown event
+unknown|DRY-RUN POST /v1/hooks/agent-finished {}
+== SessionStart
+start|DRY-RUN POST /v1/hooks/agent-status {"agent_id":"s1","tool":"claude-code","project":"app","status":"working"}
+== UserPromptSubmit
+prompt|DRY-RUN POST /v1/hooks/agent-status {"agent_id":"s1","tool":"claude-code","project":"app","status":"working"}
+== Notification keeps the message, whitespace flattened
+notify|DRY-RUN POST /v1/hooks/agent-status {"agent_id":"s1","tool":"claude-code","project":"app","status":"waiting","message":"Needs your permission"}
+== Stop
+stop|DRY-RUN POST /v1/hooks/agent-finished {"agent_id":"s1","tool":"claude-code","project":"app"}
+== Stop without session id
+stop-nosid|DRY-RUN POST /v1/hooks/agent-finished {}
+== SessionEnd
+end|DRY-RUN POST /v1/hooks/agent-status {"agent_id":"s1","tool":"claude-code","project":"app","status":"finished"}
+== quotes and backslashes are escaped
+escape|DRY-RUN POST /v1/hooks/agent-status {"agent_id":"s\"1","tool":"claude-code","project":"my app","status":"waiting","message":"say \"hi\" \\ bye"}
+== invalid JSON behaves like the legacy call
+badjson|DRY-RUN POST /v1/hooks/agent-finished {}
+== message longer than 200 chars is cut
+longmsg|DRY-RUN POST /v1/hooks/agent-status {"agent_id":"s1","tool":"claude-code","project":"x","status":"waiting","mess
+== sed fallback parser (no python3, no jq) gives the same requests
+sedparse|DRY-RUN POST /v1/hooks/agent-status {"agent_id":"s1","tool":"claude-code","project":"app","status":"waiting","message":"Needs your permission"}
+sedparse|DRY-RUN POST /v1/hooks/agent-finished {"agent_id":"s1","tool":"claude-code","project":"app"}
+== silent without a token
+== always exit 0
+exit|exit=0

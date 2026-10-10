@@ -9,7 +9,8 @@
 # Optional E2E encryption: if COGITATING_PUBKEY (base64 RSA-2048 SPKI DER) is set, `message` and `project` are
 # sent as "e1:" + base64(RSA-OAEP-SHA256 ciphertext), each cut to 150 bytes first. If encryption fails the
 # fields are omitted (never plaintext). Without COGITATING_PUBKEY plaintext is sent as before.
-# Never blocks, never prints, always exits 0.
+# COGITATING_DRY_RUN=1 prints the request ("DRY-RUN POST /v1/hooks/<endpoint> <body>") instead of sending it.
+# Never blocks, never prints (except in dry-run), always exits 0.
 
 set -u
 
@@ -72,6 +73,11 @@ json_escape() {
 }
 
 post() {  # post <endpoint> <json-body>
+  # COGITATING_DRY_RUN=1: print the request instead of sending it (for checking new versions; never set in real use).
+  if [ "${COGITATING_DRY_RUN:-}" = "1" ]; then
+    printf 'DRY-RUN POST /v1/hooks/%s %s\n' "$1" "$2"
+    return 0
+  fi
   curl -sS -m 5 -X POST "$COGITATING_API/v1/hooks/$1" \
     -H "Authorization: Bearer $COGITATING_HOOK_TOKEN" \
     -H "Content-Type: application/json" \
