@@ -46,6 +46,7 @@ In the app: Settings → Agent hook → **Copy prompt for your agent**, then pas
 |---|---|---|
 | `COGITATING_HOOK_TOKEN` | — | Your hook token. If empty, the hooks do nothing. |
 | `COGITATING_API` | `https://cogitating-api.pb79e6spzzxx0.eu-north-1.cs.amazonlightsail.com` | API base URL. |
+| `COGITATING_PUBKEY` | unset | Optional. Base64 public key from the app; turns on message encryption (see below). |
 | `COGITATING_NOTIFY_JSON` | unset | Set to `1` to print `{}` on stdout (needed by Cursor and Gemini CLI). |
 
 ## How it works
@@ -65,6 +66,22 @@ In the app: Settings → Agent hook → **Copy prompt for your agent**, then pas
 Every hook runs with a 5-second timeout, never prints anything, and always exits 0, so it can never block or break your agent.
 
 Claude Code events map to statuses like this: `SessionStart` / `UserPromptSubmit` → working, `Notification` → waiting for you (with the message), `Stop` → finished (via `agent-finished`), `SessionEnd` → finished.
+
+## Encrypting messages (optional)
+
+The app shows a public key in Settings. Install with it, or set it yourself:
+
+```bash
+bash install.sh --token YOUR_TOKEN --pubkey BASE64_PUBLIC_KEY
+# or add COGITATING_PUBKEY to the "env" block in ~/.claude/settings.json
+```
+
+With `COGITATING_PUBKEY` set, the hook encrypts the `message` and the `project` name on your machine (RSA-OAEP with SHA-256, needs `openssl` in `PATH`) and sends them as `e1:<base64>`. Only your phone holds the private key, so the Cogitating server and push services see only ciphertext.
+
+- The message is cut to about 150 bytes before encryption.
+- The project name is encrypted too.
+- Push notification text becomes generic, because the server cannot read the message.
+- If encryption fails (no `openssl`, bad key), the hook omits `message` and `project` and still sends the status. It never falls back to plaintext.
 
 ## Privacy
 

@@ -84,4 +84,51 @@ if [ -z "${FAKE_CURL_LOG:-}" ]; then
   echo '{"session_id":"x","hook_event_name":"Stop"}' | COGITATING_API="http://127.0.0.1:1" bash "$CC"; [ $? -eq 0 ] || fail "unreachable claude"
 fi
 
-echo "PASS: notify, claude-code, wrapper"
+# 7. optional encryption (COGITATING_PUBKEY)
+if command -v openssl >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+  openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$TMP/priv.pem" 2>/dev/null || fail "keygen"
+  PUB="$(openssl pkey -in "$TMP/priv.pem" -pubout -outform DER 2>/dev/null | base64 | tr -d '\n')"
+  field() { printf '%s' "$1" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read().split("|",2)[2]).get(sys.argv[1],"<absent>"),end="")' "$2"; }
+  decrypt() { printf '%s' "${1#e1:}" | base64 -d 2>/dev/null | openssl pkeyutl -decrypt -inkey "$TMP/priv.pem" \
+    -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256 2>/dev/null; }
+  mk() { python3 -c 'import json,sys; print(json.dumps({"session_id":"s1","cwd":sys.argv[1],"hook_event_name":"Notification","message":sys.argv[2]}))' "$1" "$2"; }
+  enc() { mk "$1" "$2" | COGITATING_PUBKEY="$3" bash "$CC"; [ $? -eq 0 ] || fail "encrypt exit"; }
+
+  MSG="Zażółć gęślą jaźń: potrzebuję zgody"
+  enc "/tmp/mój-projekt" "$MSG" "$PUB"
+  L="$(last)"; m="$(field "$L" message)"; p="$(field "$L" project)"
+  case "$m$p" in e1:*e1:*) ;; *) fail "not encrypted: $L" ;; esac
+  [ "$(decrypt "$m")" = "$MSG" ] || fail "message decrypt"
+  [ "$(decrypt "$p")" = "mój-projekt" ] || fail "project decrypt"
+  case "$L" in *"Zaż"*|*"mój"*) fail "plaintext leaked" ;; esac
+
+  enc "/tmp/proj" "$(python3 -c 'print("ą"*100)')" "$PUB"
+  dec="$(decrypt "$(field "$(last)" message)")"
+  [ "$dec" = "$(python3 -c 'print("ą"*75,end="")')" ] || fail "truncation at char boundary"
+
+  enc "/tmp/secret-proj" "secret message" "not-a-key"
+  L="$(last)"
+  [ "$(field "$L" status)" = "waiting" ] && [ "$(field "$L" message)" = "<absent>" ] && [ "$(field "$L" project)" = "<absent>" ] || fail "bad key: $L"
+  case "$L" in *secret*) fail "bad key leaked plaintext" ;; esac
+
+  mk "/tmp/my-proj" "Needs input" | COGITATING_PUBKEY= bash "$CC"
+  L="$(last)"
+  [ "$(field "$L" message)" = "Needs input" ] && [ "$(field "$L" project)" = "my-proj" ] || fail "plaintext unchanged: $L"
+
+  # installer: --pubkey lands in env block next to the token (fake HOME, unreachable fake API)
+  FH="$TMP/home"; mkdir -p "$FH"
+  HOME="$FH" bash "$DIR/install.sh" --token tok-fake-install --api http://127.0.0.1:1 --pubkey "$PUB" >"$TMP/inst.out" 2>&1 </dev/null
+  grep -q 'tok-fake-install' "$TMP/inst.out" && fail "installer printed the token"
+  python3 - "$FH/.claude/settings.json" "$PUB" <<'PY' || fail "installer env"
+import json, sys
+env = json.load(open(sys.argv[1]))["env"]
+assert env["COGITATING_PUBKEY"] == sys.argv[2] and env["COGITATING_HOOK_TOKEN"] == "tok-fake-install"
+PY
+  HOME="$FH" bash "$DIR/install.sh" --uninstall >/dev/null 2>&1
+  grep -q COGITATING_PUBKEY "$FH/.claude/settings.json" 2>/dev/null && fail "uninstall left pubkey"
+  ENCMSG=", encryption"
+else
+  ENCMSG=", encryption SKIPPED (openssl/python3 missing)"
+fi
+
+echo "PASS: notify, claude-code, wrapper$ENCMSG"

@@ -1,12 +1,12 @@
 #!/bin/bash
 # Cogitating hook installer for Claude Code.
-#   bash install.sh [--token TOKEN] [--api URL] [--uninstall]
+#   bash install.sh [--token TOKEN] [--api URL] [--pubkey BASE64] [--uninstall]
 # Copies scripts to ~/.cogitating/ and merges hooks + env into ~/.claude/settings.json.
 # Idempotent. Never aborts the calling shell (always exits 0 except on bad usage).
 
 DEFAULT_API="https://cogitating-api.pb79e6spzzxx0.eu-north-1.cs.amazonlightsail.com"
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
-TOKEN=""; API=""; UNINSTALL=0
+TOKEN=""; API=""; PUBKEY=""; UNINSTALL=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -14,8 +14,10 @@ while [ $# -gt 0 ]; do
     --token=*) TOKEN="${1#--token=}"; shift ;;
     --api) API="${2:-}"; shift 2 || shift ;;
     --api=*) API="${1#--api=}"; shift ;;
+    --pubkey) PUBKEY="${2:-}"; shift 2 || shift ;;
+    --pubkey=*) PUBKEY="${1#--pubkey=}"; shift ;;
     --uninstall) UNINSTALL=1; shift ;;
-    -h|--help) echo "Usage: bash install.sh [--token TOKEN] [--api URL] [--uninstall]"; exit 0 ;;
+    -h|--help) echo "Usage: bash install.sh [--token TOKEN] [--api URL] [--pubkey BASE64] [--uninstall]"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -28,11 +30,11 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 0
 fi
 
-# Edits settings.json. Args: action(install|uninstall) settings_path token api
+# Edits settings.json. Args: action(install|uninstall) settings_path token api dest pubkey
 edit_settings() {
   python3 - "$@" <<'PY'
 import json, os, shutil, sys
-action, path, token, api, dest = sys.argv[1:6]
+action, path, token, api, dest, pubkey = sys.argv[1:7]
 EVENTS = ["SessionStart", "UserPromptSubmit", "Notification", "Stop", "SessionEnd"]
 MARK = ".cogitating/claude-code"
 cmd = "bash " + os.path.join(dest, "claude-code.sh")
@@ -85,9 +87,12 @@ if action == "install":
         env["COGITATING_HOOK_TOKEN"] = token
     if api:
         env["COGITATING_API"] = api
+    if pubkey:
+        env["COGITATING_PUBKEY"] = "".join(pubkey.split())
 else:
     env.pop("COGITATING_HOOK_TOKEN", None)
     env.pop("COGITATING_API", None)
+    env.pop("COGITATING_PUBKEY", None)
 
 if hooks: data["hooks"] = hooks
 else: data.pop("hooks", None)
@@ -102,7 +107,7 @@ PY
 }
 
 if [ "$UNINSTALL" = 1 ]; then
-  edit_settings uninstall "$SETTINGS" "" "" "$DEST" || echo "Could not update $SETTINGS."
+  edit_settings uninstall "$SETTINGS" "" "" "$DEST" "" || echo "Could not update $SETTINGS."
   rm -rf "$DEST"
   echo "Cogitating hooks removed (settings backup: $SETTINGS.cogitating.bak)."
   exit 0
@@ -129,8 +134,9 @@ fi
 echo "Scripts installed to $DEST"
 
 mkdir -p "$HOME/.claude" 2>/dev/null
-edit_settings install "$SETTINGS" "$TOKEN" "$API" "$DEST" || { echo "settings.json not updated."; exit 0; }
+edit_settings install "$SETTINGS" "$TOKEN" "$API" "$DEST" "$PUBKEY" || { echo "settings.json not updated."; exit 0; }
 echo "Hooks merged into $SETTINGS"
+[ -n "$PUBKEY" ] && echo "Message encryption enabled (COGITATING_PUBKEY set)."
 
 # Verify.
 URL="${API:-$DEFAULT_API}"
