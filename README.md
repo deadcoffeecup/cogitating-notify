@@ -73,7 +73,8 @@ The app shows a public key in Settings. Install with it, or set it yourself:
 
 ```bash
 bash install.sh --token YOUR_TOKEN --pubkey BASE64_PUBLIC_KEY
-# or add COGITATING_PUBKEY to the "env" block in ~/.claude/settings.json
+# or set it in ~/.claude/settings.json (backs up the file, --remove turns it off)
+bash set-pubkey.sh BASE64_PUBLIC_KEY
 ```
 
 With `COGITATING_PUBKEY` set, the hook encrypts the `message` and the `project` name on your machine (RSA-OAEP with SHA-256, needs `openssl` in `PATH`) and sends them as `e1:<base64>`. Only your phone holds the private key, so the Cogitating server and push services see only ciphertext.
