@@ -57,14 +57,14 @@ bash "$DIR/hooks/cogitating-notify.sh" '{"type":"agent-turn-complete"}' </dev/nu
 [ "$(last)" = "v1/hooks/agent-finished|Bearer tok-smoke|{}" ] || fail "notify request: $(last)"
 
 # 2. no token -> no request, exit 0
-n=$(count); COGITATING_HOOK_TOKEN= bash "$DIR/hooks/cogitating-notify.sh"; [ $? -eq 0 ] || fail "no-token exit"
-COGITATING_HOOK_TOKEN= bash "$CC" </dev/null; [ "$(count)" = "$n" ] || fail "request sent without token"
+n=$(count); COGITATING_HOOK_TOKEN="" bash "$DIR/hooks/cogitating-notify.sh" || fail "no-token exit"
+COGITATING_HOOK_TOKEN="" bash "$CC" </dev/null; [ "$(count)" = "$n" ] || fail "request sent without token"
 
 # 3. JSON mode prints {}
 [ "$(COGITATING_NOTIFY_JSON=1 bash "$DIR/hooks/cogitating-notify.sh")" = "{}" ] || fail "json mode"
 
 # 4. claude-code.sh event mapping
-ev() { printf '%s' "$1" | bash "$CC"; [ $? -eq 0 ] || fail "claude-code exit for $1"; }
+ev() { printf '%s' "$1" | bash "$CC" || fail "claude-code exit for $1"; }
 ev '{"session_id":"s1","cwd":"/tmp/my-proj","hook_event_name":"UserPromptSubmit"}'
 last | grep -q '^v1/hooks/agent-status|Bearer tok-smoke|.*"agent_id":"s1".*"project":"my-proj".*"status":"working"' || fail "working: $(last)"
 ev '{"session_id":"s1","cwd":"/tmp/my-proj","hook_event_name":"Notification","message":"Needs \"input\""}'
@@ -75,13 +75,13 @@ ev '{"session_id":"s1","cwd":"/tmp/my-proj","hook_event_name":"SessionEnd"}'
 last | grep -q '^v1/hooks/agent-status|.*"status":"finished"' || fail "session end: $(last)"
 
 # 5. legacy wrapper still works
-n=$(count); bash "$DIR/hooks/claude-code-stop.sh" </dev/null; [ $? -eq 0 ] || fail "wrapper exit"
+n=$(count); bash "$DIR/hooks/claude-code-stop.sh" </dev/null || fail "wrapper exit"
 [ "$(count)" -gt "$n" ] || fail "wrapper did not POST"
 
 # 6. unreachable server -> exit 0 (skipped with fake curl)
 if [ -z "${FAKE_CURL_LOG:-}" ]; then
-  COGITATING_API="http://127.0.0.1:1" bash "$DIR/hooks/cogitating-notify.sh"; [ $? -eq 0 ] || fail "unreachable notify"
-  echo '{"session_id":"x","hook_event_name":"Stop"}' | COGITATING_API="http://127.0.0.1:1" bash "$CC"; [ $? -eq 0 ] || fail "unreachable claude"
+  COGITATING_API="http://127.0.0.1:1" bash "$DIR/hooks/cogitating-notify.sh" || fail "unreachable notify"
+  echo '{"session_id":"x","hook_event_name":"Stop"}' | COGITATING_API="http://127.0.0.1:1" bash "$CC" || fail "unreachable claude"
 fi
 
 # 7. optional encryption (COGITATING_PUBKEY)
@@ -92,7 +92,7 @@ if command -v openssl >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; the
   decrypt() { printf '%s' "${1#e1:}" | base64 -d 2>/dev/null | openssl pkeyutl -decrypt -inkey "$TMP/priv.pem" \
     -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256 2>/dev/null; }
   mk() { python3 -c 'import json,sys; print(json.dumps({"session_id":"s1","cwd":sys.argv[1],"hook_event_name":"Notification","message":sys.argv[2]}))' "$1" "$2"; }
-  enc() { mk "$1" "$2" | COGITATING_PUBKEY="$3" bash "$CC"; [ $? -eq 0 ] || fail "encrypt exit"; }
+  enc() { mk "$1" "$2" | COGITATING_PUBKEY="$3" bash "$CC" || fail "encrypt exit"; }
 
   MSG="Zażółć gęślą jaźń: potrzebuję zgody"
   enc "/tmp/mój-projekt" "$MSG" "$PUB"
@@ -111,7 +111,7 @@ if command -v openssl >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; the
   [ "$(field "$L" status)" = "waiting" ] && [ "$(field "$L" message)" = "<absent>" ] && [ "$(field "$L" project)" = "<absent>" ] || fail "bad key: $L"
   case "$L" in *secret*) fail "bad key leaked plaintext" ;; esac
 
-  mk "/tmp/my-proj" "Needs input" | COGITATING_PUBKEY= bash "$CC"
+  mk "/tmp/my-proj" "Needs input" | COGITATING_PUBKEY="" bash "$CC"
   L="$(last)"
   [ "$(field "$L" message)" = "Needs input" ] && [ "$(field "$L" project)" = "my-proj" ] || fail "plaintext unchanged: $L"
 

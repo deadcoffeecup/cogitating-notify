@@ -94,6 +94,7 @@ MESSAGE="${MESSAGE:0:200}"
 # ---- optional encryption (RSA-OAEP, SHA-256 for OAEP and MGF1)
 PEM_DIR=""
 PEM_FILE=""
+# shellcheck disable=SC2329  # invoked via trap
 cleanup() { [ -n "$PEM_DIR" ] && rm -rf "$PEM_DIR"; }
 trap cleanup EXIT
 
